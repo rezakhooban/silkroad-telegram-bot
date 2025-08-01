@@ -10,14 +10,11 @@ from telegram.ext import (
 )
 from dotenv import load_dotenv
 
-# بارگذاری توکن از فایل .env یا محیط سیستم
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
-# مراحل گفت‌وگو
 (START, NAME, ORG, ROLE, EXP, INTERVIEW) = range(6)
 
-# شروع بات و پیام خوش‌آمدگویی
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     keyboard = [[KeyboardButton("تکمیل اطلاعات")]]
     markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -29,7 +26,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     return START
 
-# ثبت نام
 async def handle_start_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("نام و نام خانوادگی:")
     return NAME
@@ -60,7 +56,6 @@ async def handle_exp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["q_index"] = 0
     return INTERVIEW
 
-# سوالات مصاحبه
 questions = [
     "1. از منظر شما، شهرداری قزوین با چه اهداف کلان و راهبردی به برگزاری اجلاس بین‌المللی شهرداران جاده ابریشم مبادرت ورزید و این اهداف چه نسبتی با رویکردهای نوین در روابط عمومی دارد؟",
     "2. روابط عمومی شهرداری قزوین در کدامین سطوح عملیاتی از مرحله طراحی تا اجرا بیشترین نقش را ایفا کرده و این نقش‌آفرینی در کدام الگوی نظری قابل صورت‌بندی است؟",
@@ -74,19 +69,17 @@ questions = [
     "10. چه پیشنهادهایی برای ارتقای سطح روایی و ارتباطی روابط عمومی شهرداری قزوین در مواجهه با رویدادهای آتی دارید؟"
 ]
 
-# شروع مصاحبه
 async def handle_interview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     index = context.user_data.get("q_index", 0)
     await update.message.reply_text(questions[index])
     return INTERVIEW
 
-# دریافت پاسخ صوتی و ارسال به ادمین
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     index = context.user_data.get("q_index", 0)
     name = context.user_data.get("name", "بدون‌نام")
     admin_chat_id = "@rezakhooban"
 
-    caption = f"👤 {name}\nپاسخ سوال {index + 1}:\n"
+    caption = f"\U0001F464 {name}\nپاسخ سوال {index + 1}:\n"
     if update.message.voice:
         await context.bot.send_voice(chat_id=admin_chat_id, voice=update.message.voice.file_id, caption=caption)
 
@@ -116,14 +109,14 @@ def main():
             EXP: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_exp)],
             INTERVIEW: [
                 MessageHandler(filters.Regex("^(شروع مصاحبه)$"), handle_interview),
-                MessageHandler(filters.VOICE, handle_voice)
+                MessageHandler(filters.VOICE, handle_voice),
             ],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
     app.add_handler(conv_handler)
-    print("🔄 Bot is polling...")
+    print("\uD83D\uDD04 Bot is polling...")
     app.run_polling()
 
 if __name__ == "__main__":
