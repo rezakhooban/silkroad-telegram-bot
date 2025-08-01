@@ -1,15 +1,54 @@
-# file: interview_bot.py
+import logging
+import os
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import (ApplicationBuilder, ContextTypes, MessageHandler, filters,
+                          CommandHandler, ConversationHandler, CallbackQueryHandler)
 
-import json
-from pathlib import Path
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
-from telegram.ext import (ApplicationBuilder, CommandHandler, MessageHandler,
-                          CallbackQueryHandler, ConversationHandler, ContextTypes, filters)
+logging.basicConfig(level=logging.INFO)
 
 # States
-START, FULLNAME, ORGAN, POSITION, EXPERIENCE, START_INTERVIEW, QUESTION = range(7)
+NAME, ORG_TYPE, POSITION, EXPERIENCE, INTRO_DONE, INTERVIEW = range(6)
 
-# Questions list
+TOKEN = os.getenv("BOT_TOKEN", "8209512056:AAEfFgOISrub-n8KdaoEusAEj7d_55LZCkI")
+ADMIN_USERNAME = "rezakhooban"
+
+# Start command
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        """این ربات با هدف بررسی نقش روابط عمومی شهرداری قزوین در هویت‌سازی فرهنگی از طریق اجلاس بین‌المللی شهرداران جاده ابریشم طراحی شده است.
+
+مشارکت شما در پاسخ به این مصاحبه، در مسیر توسعه برنامه‌های فرهنگی آینده کمک شایانی خواهد کرد.""",
+        reply_markup=ReplyKeyboardMarkup([["تکمیل اطلاعات"]], resize_keyboard=True)
+    )
+    return NAME
+
+async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['name'] = update.message.text
+    await update.message.reply_text("ارگان محل خدمت:", reply_markup=ReplyKeyboardMarkup(
+        [["دولتی", "خصوصی"]], resize_keyboard=True))
+    return ORG_TYPE
+
+async def get_org(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['org'] = update.message.text
+    await update.message.reply_text("جایگاه سازمانی:", reply_markup=ReplyKeyboardMarkup(
+        [["کارشناس", "مدیر میانی", "مدیر ارشد"]], resize_keyboard=True))
+    return POSITION
+
+async def get_position(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['position'] = update.message.text
+    await update.message.reply_text("سابقه فعالیت در حوزه روابط عمومی دارد:", reply_markup=ReplyKeyboardMarkup(
+        [["بله", "خیر"]], resize_keyboard=True))
+    return EXPERIENCE
+
+async def get_experience(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['experience'] = update.message.text
+
+    await update.message.reply_text(
+        """با انجام این مصاحبه، گامی موثر در مسیر هويت سازي (برندسازي) فرهنگ شهري قزوین برمی دارید.
+راهنما: با ظاهر شدن سوال شما می توانید صدای خود را در پاسخ به سوال ضبط و ارسال کنید.""",
+        reply_markup=ReplyKeyboardMarkup([["شروع مصاحبه"]], resize_keyboard=True))
+    return INTRO_DONE
+
 QUESTIONS = [
     "از منظر شما، شهرداری قزوین با چه اهداف کلان و راهبردی به برگزاری اجلاس بین‌المللی شهرداران جاده ابریشم مبادرت ورزید و این اهداف چه نسبتی با رویکردهای نوین در روابط عمومی دارد؟",
     "روابط عمومی شهرداری قزوین در کدامین سطوح عملیاتی—از مرحله طراحی تا اجرا—بیشترین نقش را ایفا کرده و این نقش‌آفرینی در کدام الگوی نظری قابل صورت‌بندی است؟",
@@ -23,128 +62,54 @@ QUESTIONS = [
     "چه پیشنهادهایی برای ارتقاء سطح راهبردی، روایی یا ارتباطی روابط عمومی شهرداری قزوین در مواجهه با رویدادهای آتی فرهنگی دارید؟"
 ]
 
-# Data cache
-user_data = {}
-SAVE_DIR = Path("interview_data")
-SAVE_DIR.mkdir(exist_ok=True)
-VOICE_DIR = SAVE_DIR / "voices"
-VOICE_DIR.mkdir(exist_ok=True)
+async def intro_done(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['q'] = 0
+    await update.message.reply_text(f"سوال ۱:
+{QUESTIONS[0]}")
+    return INTERVIEW
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        """
-این ربات با هدف بررسی نقش روابط عمومی شهرداری قزوین در هویت‌سازی فرهنگی از طریق اجلاس بین‌المللی شهرداران جاده ابریشم طراحی شده است.
-مشارکت شما در پاسخ به این مصاحبه، در مسیر توسعه برنامه‌های فرهنگی آینده کمک شایانی خواهد کرد.
-        """,
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("تکمیل اطلاعات", callback_data="start_info")]])
-    )
-    return START
+async def collect_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = context.user_data.get('q', 0)
+    user = update.effective_user
 
-async def start_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.answer()
-    await update.callback_query.message.reply_text("نام و نام خانوادگی:", reply_markup=ReplyKeyboardRemove())
-    return FULLNAME
-
-async def get_fullname(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data[update.effective_user.id] = {'fullname': update.message.text, 'answers': []}
-    buttons = [[
-        InlineKeyboardButton("دولتی", callback_data="دولتی"),
-        InlineKeyboardButton("خصوصی", callback_data="خصوصی")
-    ]]
-    await update.message.reply_text("ارگان محل خدمت:", reply_markup=InlineKeyboardMarkup(buttons))
-    return ORGAN
-
-async def get_organ(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data[update.effective_user.id]['organ'] = update.callback_query.data
-    await update.callback_query.answer()
-    buttons = [[
-        InlineKeyboardButton("کارشناس", callback_data="کارشناس"),
-        InlineKeyboardButton("مدیر میانی", callback_data="مدیر میانی"),
-        InlineKeyboardButton("مدیر ارشد", callback_data="مدیر ارشد")
-    ]]
-    await update.callback_query.message.reply_text("جایگاه سازمانی:", reply_markup=InlineKeyboardMarkup(buttons))
-    return POSITION
-
-async def get_position(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data[update.effective_user.id]['position'] = update.callback_query.data
-    await update.callback_query.answer()
-    buttons = [[
-        InlineKeyboardButton("بله", callback_data="بله"),
-        InlineKeyboardButton("خیر", callback_data="خیر")
-    ]]
-    await update.callback_query.message.reply_text("سابقه فعالیت در حوزه روابط عمومی دارد:", reply_markup=InlineKeyboardMarkup(buttons))
-    return EXPERIENCE
-
-async def get_experience(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data[update.effective_user.id]['experience'] = update.callback_query.data
-    await update.callback_query.answer()
-    await update.callback_query.message.reply_text(
-        """
-با انجام این مصاحبه، گامی موثر در مسیر هويت سازي (برندسازي) فرهنگ شهري قزوین برمی دارید.
-راهنما: با ظاهر شدن سوال شما می توانید صدای خود را در پاسخ به سوال ضبط و ارسال کنید.
-        """,
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("شروع مصاحبه", callback_data="begin")]])
-    )
-    return START_INTERVIEW
-
-async def start_interview(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.answer()
-    context.user_data['q_index'] = 0
-    await update.callback_query.message.reply_text(f"سوال 1:\n{QUESTIONS[0]}")
-    return QUESTION
-
-async def collect_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q_idx = context.user_data.get('q_index', 0)
-    uid = update.effective_user.id
-    q_text = QUESTIONS[q_idx]
-    fullname = user_data.get(uid, {}).get('fullname', f"User_{uid}")
-
-    # Save voice
+    # دریافت فایل صوتی و ارسال به ادمین
     if update.message.voice:
-        file_id = update.message.voice.file_id
-        voice_file = await context.bot.get_file(file_id)
-        filename = VOICE_DIR / f"{fullname.replace(' ', '_')}_q{q_idx+1}_{uid}.ogg"
-        await voice_file.download_to_drive(str(filename))
+        file = await update.message.voice.get_file()
+        caption = f"👤 {user.full_name}  | سوال {q+1}\n@{user.username or '-'}"
+        await context.bot.send_voice(chat_id=f"@{ADMIN_USERNAME}", voice=file.file_id, caption=caption)
 
-        user_data[uid]['answers'].append({
-            'question': q_text,
-            'voice_file_id': file_id,
-            'voice_path': str(filename)
-        })
-        await update.message.forward(chat_id="@rezakhooban")
-        await update.message.reply_text("پاسخ صوتی شما دریافت شد. متشکرم ✅")
-
-    q_idx += 1
-    if q_idx < len(QUESTIONS):
-        context.user_data['q_index'] = q_idx
-        await update.message.reply_text(f"سوال {q_idx+1}:\n{QUESTIONS[q_idx]}")
-        return QUESTION
+        q += 1
+        if q < len(QUESTIONS):
+            context.user_data['q'] = q
+            await update.message.reply_text(f"سوال {q+1}:
+{QUESTIONS[q]}")
+            return INTERVIEW
+        else:
+            await update.message.reply_text("✅ مصاحبه به پایان رسید. سپاسگزاریم.")
+            return ConversationHandler.END
     else:
-        save_path = SAVE_DIR / f"{fullname.replace(' ', '_')}_{uid}.json"
-        with open(save_path, 'w', encoding='utf-8') as f:
-            json.dump(user_data[uid], f, ensure_ascii=False, indent=2)
+        await update.message.reply_text("لطفاً پاسخ را به صورت پیام صوتی ارسال کنید.")
+        return INTERVIEW
 
-        await update.message.reply_text("از مشارکت شما سپاسگزاریم. 🎤")
-        return ConversationHandler.END
-
-# Setup the bot
-application = ApplicationBuilder().token("8209512056:AAEfFgOISrub-n8KdaoEusAEj7d_55LZCkI").build()
-
-conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("start", start)],
-    states={
-        START: [CallbackQueryHandler(start_info, pattern="start_info")],
-        FULLNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_fullname)],
-        ORGAN: [CallbackQueryHandler(get_organ)],
-        POSITION: [CallbackQueryHandler(get_position)],
-        EXPERIENCE: [CallbackQueryHandler(get_experience)],
-        START_INTERVIEW: [CallbackQueryHandler(start_interview, pattern="begin")],
-        QUESTION: [MessageHandler(filters.VOICE, collect_answer)],
-    },
-    fallbacks=[]
-)
-
-application.add_handler(conv_handler)
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("مصاحبه لغو شد.")
+    return ConversationHandler.END
 
 if __name__ == '__main__':
-    application.run_polling()
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    conv = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
+            ORG_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_org)],
+            POSITION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_position)],
+            EXPERIENCE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_experience)],
+            INTRO_DONE: [MessageHandler(filters.Regex("^شروع مصاحبه$"), intro_done)],
+            INTERVIEW: [MessageHandler(filters.VOICE | filters.AUDIO, collect_audio)]
+        },
+        fallbacks=[CommandHandler("cancel", cancel)]
+    )
+
+    app.add_handler(conv)
+    app.run_polling()
