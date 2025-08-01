@@ -1,35 +1,33 @@
 import os
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    ConversationHandler,
-    ContextTypes,
-    filters,
+    ApplicationBuilder, CommandHandler, MessageHandler,
+    ConversationHandler, ContextTypes, filters
 )
 from dotenv import load_dotenv
+from flask import Flask, request
+import asyncio
 
-# بارگذاری توکن از محیط یا فایل .env
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # مثل: https://yourapp.onrender.com/webhook
+PORT = int(os.getenv("PORT", 8443))
 
-# مراحل گفت‌وگو
 (START, NAME, ORG, ROLE, EXP, INTERVIEW) = range(6)
 
-# شروع ربات
+questions = [
+    # لیست سوالات مشابه قبل
+]
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     keyboard = [[KeyboardButton("تکمیل اطلاعات")]]
     markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text(
-        "این ربات با هدف بررسی نقش روابط عمومی شهرداری قزوین در هویت‌سازی فرهنگی "
-        "از طریق اجلاس بین‌المللی شهرداران جاده ابریشم طراحی شده است.\n\n"
-        "مشارکت شما در پاسخ به این مصاحبه، در مسیر توسعه برنامه‌های فرهنگی آینده کمک شایانی خواهد کرد.",
+        "این ربات با هدف بررسی نقش روابط عمومی شهرداری قزوین در هویت‌سازی فرهنگی ...",
         reply_markup=markup,
     )
     return START
 
-# ورود اطلاعات
 async def handle_start_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("نام و نام خانوادگی:")
     return NAME
@@ -52,29 +50,12 @@ async def handle_role(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 async def handle_exp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["exp"] = update.message.text
     await update.message.reply_text(
-        "با انجام این مصاحبه، گامی موثر در مسیر هويت‌سازی (برندسازی) فرهنگ شهری قزوین برمی‌دارید.\n"
-        "راهنما: با ظاهر شدن سوال، شما می‌توانید صدای خود را در پاسخ به سوال ضبط و ارسال کنید.\n\n"
         "برای شروع مصاحبه، دکمه زیر را فشار دهید.",
         reply_markup=ReplyKeyboardMarkup([[KeyboardButton("شروع مصاحبه")]], resize_keyboard=True),
     )
     context.user_data["q_index"] = 0
     return INTERVIEW
 
-# سوالات
-questions = [
-    "1. از منظر شما، شهرداری قزوین با چه اهداف کلان و راهبردی به برگزاری اجلاس بین‌المللی شهرداران جاده ابریشم مبادرت ورزید و این اهداف چه نسبتی با رویکردهای نوین در روابط عمومی دارد؟",
-    "2. روابط عمومی شهرداری قزوین در کدامین سطوح عملیاتی از مرحله طراحی تا اجرا بیشترین نقش را ایفا کرده و این نقش‌آفرینی در کدام الگوی نظری قابل صورت‌بندی است؟",
-    "3. چه ابزارهایی در حوزه رسانه‌های سنتی، دیجیتال و محیطی برای پوشش این رویداد به کار گرفته شد و چه منطق ارتباطی بر انتخاب آن‌ها حاکم بوده است؟",
-    "4. تا چه اندازه از عناصر نمادین، روایت‌های فرهنگی و نشانه‌های بومی برای بازنمایی هویت فرهنگی شهر قزوین در ساختار رویداد استفاده شد؟",
-    "5. بازخورد مخاطبان ملی و بین‌المللی نسبت به چهره فرهنگی بازنمایی‌شده از شهر قزوین چه بوده است؟",
-    "6. در فرایند اجرا یا روایت‌سازی فرهنگی اجلاس، با چه چالش‌ها یا گسست‌هایی مواجه بودید و چگونه مدیریت شد؟",
-    "7. روابط عمومی شهرداری چگونه توانست در سطح بین‌فرهنگی و فراملی با نهادها و شهرداران تعامل مؤثر برقرار سازد؟",
-    "8. چه تجربه‌ها و دستاوردهایی از این رویداد برای شهرداری‌های دیگر الگوبخش است؟",
-    "9. آیا در روایت‌سازی رسانه‌ای، از چارچوب‌های نظری مشخصی استفاده شد؟ اگر بله، چه الگویی؟",
-    "10. چه پیشنهادهایی برای ارتقای سطح روایی و ارتباطی روابط عمومی شهرداری قزوین در مواجهه با رویدادهای آتی دارید؟"
-]
-
-# مصاحبه
 async def handle_interview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     index = context.user_data.get("q_index", 0)
     await update.message.reply_text(questions[index])
@@ -83,11 +64,11 @@ async def handle_interview(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     index = context.user_data.get("q_index", 0)
     name = context.user_data.get("name", "بدون‌نام")
-    admin_chat_id = "@rezakhooban"
+    admin_chat_id = int(os.getenv("ADMIN_CHAT_ID"))  # عددی، نه @username
 
-    caption = f"\U0001F464 {name}\nپاسخ سوال {index + 1}:\n"
     if update.message.voice:
-        await context.bot.send_voice(chat_id=admin_chat_id, voice=update.message.voice.file_id, caption=caption)
+        await context.bot.send_voice(chat_id=admin_chat_id, voice=update.message.voice.file_id,
+                                     caption=f"\U0001F464 {name}\nپاسخ سوال {index + 1}:")
 
     index += 1
     if index < len(questions):
@@ -95,37 +76,49 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await update.message.reply_text(questions[index])
         return INTERVIEW
     else:
-        await update.message.reply_text("\u2705 مصاحبه به پایان رسید. سپاس از مشارکت شما.")
+        await update.message.reply_text("✅ مصاحبه به پایان رسید. سپاس از مشارکت شما.")
         return ConversationHandler.END
 
-# لغو
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("مصاحبه لغو شد.")
     return ConversationHandler.END
 
-# اجرای اصلی
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+# ساخت اپلیکیشن تلگرام
+app = ApplicationBuilder().token(TOKEN).build()
 
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            START: [MessageHandler(filters.Regex("^(تکمیل اطلاعات)$"), handle_start_button)],
-            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name)],
-            ORG: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_org)],
-            ROLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_role)],
-            EXP: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_exp)],
-            INTERVIEW: [
-                MessageHandler(filters.Regex("^(شروع مصاحبه)$"), handle_interview),
-                MessageHandler(filters.VOICE, handle_voice)
-            ],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
+conv_handler = ConversationHandler(
+    entry_points=[CommandHandler("start", start)],
+    states={
+        START: [MessageHandler(filters.Regex("^(تکمیل اطلاعات)$"), handle_start_button)],
+        NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name)],
+        ORG: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_org)],
+        ROLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_role)],
+        EXP: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_exp)],
+        INTERVIEW: [
+            MessageHandler(filters.Regex("^(شروع مصاحبه)$"), handle_interview),
+            MessageHandler(filters.VOICE, handle_voice)
+        ],
+    },
+    fallbacks=[CommandHandler("cancel", cancel)],
+)
 
-    app.add_handler(conv_handler)
-    print("\ud83d\udd04 Bot is polling...")
-    app.run_polling()
+app.add_handler(conv_handler)
+
+# اجرای webhook
+async def main():
+    await app.initialize()
+    await app.start()
+    await app.bot.set_webhook(url=WEBHOOK_URL)
+    print("✅ Webhook set!")
+
+flask_app = Flask(__name__)
+
+@flask_app.route("/webhook", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), app.bot)
+    asyncio.run(app.process_update(update))
+    return "OK"
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
+    flask_app.run(host="0.0.0.0", port=PORT)
