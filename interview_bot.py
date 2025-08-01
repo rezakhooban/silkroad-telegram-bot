@@ -1,11 +1,15 @@
+# file: interview_bot.py
+
 import json
 from pathlib import Path
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (ApplicationBuilder, CommandHandler, MessageHandler,
                           CallbackQueryHandler, ConversationHandler, ContextTypes, filters)
 
+# States
 START, FULLNAME, ORGAN, POSITION, EXPERIENCE, START_INTERVIEW, QUESTION = range(7)
 
+# Questions list
 QUESTIONS = [
     "از منظر شما، شهرداری قزوین با چه اهداف کلان و راهبردی به برگزاری اجلاس بین‌المللی شهرداران جاده ابریشم مبادرت ورزید و این اهداف چه نسبتی با رویکردهای نوین در روابط عمومی دارد؟",
     "روابط عمومی شهرداری قزوین در کدامین سطوح عملیاتی—از مرحله طراحی تا اجرا—بیشترین نقش را ایفا کرده و این نقش‌آفرینی در کدام الگوی نظری قابل صورت‌بندی است؟",
@@ -19,10 +23,11 @@ QUESTIONS = [
     "چه پیشنهادهایی برای ارتقاء سطح راهبردی، روایی یا ارتباطی روابط عمومی شهرداری قزوین در مواجهه با رویدادهای آتی فرهنگی دارید؟"
 ]
 
+# Data cache
 user_data = {}
 SAVE_DIR = Path("interview_data")
-VOICE_DIR = SAVE_DIR / "voices"
 SAVE_DIR.mkdir(exist_ok=True)
+VOICE_DIR = SAVE_DIR / "voices"
 VOICE_DIR.mkdir(exist_ok=True)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -94,6 +99,7 @@ async def collect_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q_text = QUESTIONS[q_idx]
     fullname = user_data.get(uid, {}).get('fullname', f"User_{uid}")
 
+    # Save voice
     if update.message.voice:
         file_id = update.message.voice.file_id
         voice_file = await context.bot.get_file(file_id)
@@ -121,6 +127,7 @@ async def collect_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("از مشارکت شما سپاسگزاریم. 🎤")
         return ConversationHandler.END
 
+# Setup the bot
 application = ApplicationBuilder().token("8209512056:AAEfFgOISrub-n8KdaoEusAEj7d_55LZCkI").build()
 
 conv_handler = ConversationHandler(
