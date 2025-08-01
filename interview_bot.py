@@ -10,11 +10,57 @@ from telegram.ext import (
 )
 from dotenv import load_dotenv
 
+# بارگذاری توکن از محیط یا فایل .env
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
+# مراحل گفت‌وگو
 (START, NAME, ORG, ROLE, EXP, INTERVIEW) = range(6)
 
+# شروع ربات
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    keyboard = [[KeyboardButton("تکمیل اطلاعات")]]
+    markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    await update.message.reply_text(
+        "این ربات با هدف بررسی نقش روابط عمومی شهرداری قزوین در هویت‌سازی فرهنگی "
+        "از طریق اجلاس بین‌المللی شهرداران جاده ابریشم طراحی شده است.\n\n"
+        "مشارکت شما در پاسخ به این مصاحبه، در مسیر توسعه برنامه‌های فرهنگی آینده کمک شایانی خواهد کرد.",
+        reply_markup=markup,
+    )
+    return START
+
+# ورود اطلاعات
+async def handle_start_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text("نام و نام خانوادگی:")
+    return NAME
+
+async def handle_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data["name"] = update.message.text
+    await update.message.reply_text("ارگان محل خدمت:\n☑ دولتی\t☑ خصوصی")
+    return ORG
+
+async def handle_org(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data["org"] = update.message.text
+    await update.message.reply_text("جایگاه سازمانی:\n☑ کارشناس\t☑ مدیر میانی\t☑ مدیر ارشد")
+    return ROLE
+
+async def handle_role(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data["role"] = update.message.text
+    await update.message.reply_text("سابقه فعالیت در حوزه روابط عمومی دارد:\n☑ بله\t☑ خیر")
+    return EXP
+
+async def handle_exp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data["exp"] = update.message.text
+    await update.message.reply_text(
+        "با انجام این مصاحبه، گامی موثر در مسیر هويت‌سازی (برندسازی) فرهنگ شهری قزوین برمی‌دارید.\n"
+        "راهنما: با ظاهر شدن سوال، شما می‌توانید صدای خود را در پاسخ به سوال ضبط و ارسال کنید.\n\n"
+        "برای شروع مصاحبه، دکمه زیر را فشار دهید.",
+        reply_markup=ReplyKeyboardMarkup([[KeyboardButton("شروع مصاحبه")]], resize_keyboard=True),
+    )
+    context.user_data["q_index"] = 0
+    return INTERVIEW
+
+# سوالات
 questions = [
     "1. از منظر شما، شهرداری قزوین با چه اهداف کلان و راهبردی به برگزاری اجلاس بین‌المللی شهرداران جاده ابریشم مبادرت ورزید و این اهداف چه نسبتی با رویکردهای نوین در روابط عمومی دارد؟",
     "2. روابط عمومی شهرداری قزوین در کدامین سطوح عملیاتی از مرحله طراحی تا اجرا بیشترین نقش را ایفا کرده و این نقش‌آفرینی در کدام الگوی نظری قابل صورت‌بندی است؟",
@@ -28,45 +74,7 @@ questions = [
     "10. چه پیشنهادهایی برای ارتقای سطح روایی و ارتباطی روابط عمومی شهرداری قزوین در مواجهه با رویدادهای آتی دارید؟"
 ]
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    keyboard = [[KeyboardButton("تکمیل اطلاعات")]]
-    markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    await update.message.reply_text(
-        "این ربات با هدف بررسی نقش روابط عمومی شهرداری قزوین در هویت‌سازی فرهنگی "
-        "از طریق اجلاس بین‌المللی شهرداران جاده ابریشم طراحی شده است.\n\n"
-        "مشارکت شما در پاسخ به این مصاحبه، در مسیر توسعه برنامه‌های فرهنگی آینده کمک شایانی خواهد کرد.",
-        reply_markup=markup,
-    )
-    return START
-
-async def handle_start_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("نام و نام خانوادگی:")
-    return NAME
-
-async def handle_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data["name"] = update.message.text
-    await update.message.reply_text("ارگان محل خدمت:\n☐ دولتی\t☐ خصوصی")
-    return ORG
-
-async def handle_org(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data["org"] = update.message.text
-    await update.message.reply_text("جایگاه سازمانی:\n☐ کارشناس\t☐ مدیر میانی\t☐ مدیر ارشد")
-    return ROLE
-
-async def handle_role(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data["role"] = update.message.text
-    await update.message.reply_text("سابقه فعالیت در حوزه روابط عمومی دارد:\n☐ بله\t☐ خیر")
-    return EXP
-
-async def handle_exp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data["exp"] = update.message.text
-    await update.message.reply_text(
-        "برای شروع مصاحبه، دکمه زیر را فشار دهید.",
-        reply_markup=ReplyKeyboardMarkup([[KeyboardButton("شروع مصاحبه")]], resize_keyboard=True),
-    )
-    context.user_data["q_index"] = 0
-    return INTERVIEW
-
+# مصاحبه
 async def handle_interview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     index = context.user_data.get("q_index", 0)
     await update.message.reply_text(questions[index])
@@ -76,7 +84,8 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     index = context.user_data.get("q_index", 0)
     name = context.user_data.get("name", "بدون‌نام")
     admin_chat_id = "@rezakhooban"
-    caption = f"👤 {name}\nپاسخ سوال {index + 1}:"
+
+    caption = f"\U0001F464 {name}\nپاسخ سوال {index + 1}:\n"
     if update.message.voice:
         await context.bot.send_voice(chat_id=admin_chat_id, voice=update.message.voice.file_id, caption=caption)
 
@@ -86,15 +95,18 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await update.message.reply_text(questions[index])
         return INTERVIEW
     else:
-        await update.message.reply_text("✅ مصاحبه به پایان رسید.")
+        await update.message.reply_text("\u2705 مصاحبه به پایان رسید. سپاس از مشارکت شما.")
         return ConversationHandler.END
 
+# لغو
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("مصاحبه لغو شد.")
     return ConversationHandler.END
 
+# اجرای اصلی
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
+
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
@@ -110,8 +122,9 @@ def main():
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
+
     app.add_handler(conv_handler)
-    print("🔄 Bot is running...")
+    print("\ud83d\udd04 Bot is polling...")
     app.run_polling()
 
 if __name__ == "__main__":
