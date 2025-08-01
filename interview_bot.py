@@ -38,9 +38,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     keyboard = [[KeyboardButton("تکمیل اطلاعات")]]
     markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text(
-        "این ربات با هدف بررسی نقش روابط عمومی شهرداری قزوین در هویت‌سازی فرهنگی طراحی شده است.
-
-"
+        "این ربات با هدف بررسی نقش روابط عمومی شهرداری قزوین در هویت‌سازی فرهنگی طراحی شده است.\n\n"
         "برای شروع، دکمه 'تکمیل اطلاعات' را بزنید.",
         reply_markup=markup,
     )
@@ -52,20 +50,17 @@ async def handle_start_button(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def handle_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["name"] = update.message.text
-    await update.message.reply_text("ارگان محل خدمت:
-☑ دولتی	☑ خصوصی")
+    await update.message.reply_text("ارگان محل خدمت:\n☑ دولتی\t☑ خصوصی")
     return ORG
 
 async def handle_org(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["org"] = update.message.text
-    await update.message.reply_text("جایگاه سازمانی:
-☑ کارشناس	☑ مدیر میانی	☑ مدیر ارشد")
+    await update.message.reply_text("جایگاه سازمانی:\n☑ کارشناس\t☑ مدیر میانی\t☑ مدیر ارشد")
     return ROLE
 
 async def handle_role(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["role"] = update.message.text
-    await update.message.reply_text("سابقه فعالیت در حوزه روابط عمومی دارد:
-☑ بله	☑ خیر")
+    await update.message.reply_text("سابقه فعالیت در حوزه روابط عمومی دارد:\n☑ بله\t☑ خیر")
     return EXP
 
 async def handle_exp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -89,8 +84,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await context.bot.send_voice(
             chat_id=ADMIN_CHAT_ID,
             voice=update.message.voice.file_id,
-            caption=f"👤 {name}
-پاسخ سوال {index + 1}:"
+            caption=f"👤 {name}\nپاسخ سوال {index + 1}:"
         )
     index += 1
     if index < len(questions):
